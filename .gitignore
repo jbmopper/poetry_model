@@ -24,6 +24,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.python-version
 
 # Model artifacts
 *.pt
