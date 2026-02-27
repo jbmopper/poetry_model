@@ -113,10 +113,8 @@ def render_sidebar_filters(df: pd.DataFrame) -> pd.DataFrame:
     return df[mask]
 
 
-def page_browse(df: pd.DataFrame):
+def page_browse(df: pd.DataFrame, filtered: pd.DataFrame):
     st.header("Browse Poems")
-
-    filtered = render_sidebar_filters(df)
     st.caption(f"{len(filtered):,} poems match current filters")
 
     col_sort, col_dir = st.columns([2, 1])
@@ -188,10 +186,8 @@ def render_poem_detail(df: pd.DataFrame, poem_id: str):
     st.text(row["text"])
 
 
-def page_detail(df: pd.DataFrame):
+def page_detail(df: pd.DataFrame, filtered: pd.DataFrame):
     st.header("Poem Detail")
-
-    render_sidebar_filters(df)
 
     poem_id = st.text_input("Enter poem ID")
     if poem_id and poem_id in df["id"].values:
@@ -200,10 +196,8 @@ def page_detail(df: pd.DataFrame):
         st.warning("Poem ID not found.")
 
 
-def page_search(df: pd.DataFrame):
+def page_search(df: pd.DataFrame, filtered: pd.DataFrame):
     st.header("Search")
-
-    filtered = render_sidebar_filters(df)
 
     query = st.text_input("Search titles and text")
     if not query:
@@ -252,10 +246,8 @@ def page_search(df: pd.DataFrame):
                 st.text(text)
 
 
-def page_stats(df: pd.DataFrame):
+def page_stats(df: pd.DataFrame, filtered: pd.DataFrame):
     st.header("Dataset Statistics")
-
-    filtered = render_sidebar_filters(df)
     st.caption(f"Stats for {len(filtered):,} poems matching filters")
 
     # Top-level metrics
@@ -399,15 +391,16 @@ def main():
     st.caption(f"Dataset: `{data_dir}`")
 
     df = load_data(str(corpus_jsonl))
+    filtered = render_sidebar_filters(df)
 
     tab_browse, tab_search, tab_stats = st.tabs(["Browse", "Search", "Stats"])
 
     with tab_browse:
-        page_browse(df)
+        page_browse(df, filtered)
     with tab_search:
-        page_search(df)
+        page_search(df, filtered)
     with tab_stats:
-        page_stats(df)
+        page_stats(df, filtered)
 
 
 if __name__ == "__main__":
