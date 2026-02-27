@@ -1,5 +1,7 @@
 import json
 import math
+import os
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -7,15 +9,41 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-DATA_DIR = Path("/mnt/raid/datas/output_v4_modern")
-CORPUS_JSONL = DATA_DIR / "corpus" / "poetry_corpus.jsonl"
 PAGE_SIZE = 25
+
+DEFAULT_DATA_DIR = "/mnt/raid/datas/output_v4_modern"
+
+
+def resolve_data_dir() -> Path | None:
+    """Resolve data directory from CLI args, env var, session state, or default."""
+    # CLI: uv run streamlit run viewer.py -- /path/to/data
+    cli_args = sys.argv[1:]
+    for arg in cli_args:
+        p = Path(arg)
+        if p.is_dir():
+            return p
+
+    if "data_dir" in st.session_state and st.session_state.data_dir:
+        p = Path(st.session_state.data_dir)
+        if p.is_dir():
+            return p
+
+    if env := os.environ.get("POETRY_DATA_DIR"):
+        p = Path(env)
+        if p.is_dir():
+            return p
+
+    p = Path(DEFAULT_DATA_DIR)
+    if p.is_dir():
+        return p
+
+    return None
 
 
 @st.cache_data
-def load_data() -> pd.DataFrame:
+def load_data(jsonl_path: str) -> pd.DataFrame:
     records = []
-    with open(CORPUS_JSONL) as f:
+    with open(jsonl_path) as f:
         for line in f:
             r = json.loads(line)
             meta = r.get("metadata", {})
@@ -338,9 +366,39 @@ def main():
     )
 
     st.title("Poetry Corpus Viewer")
-    st.caption("output_v4_modern — modern poetry dataset")
 
-    df = load_data()
+    data_dir = resolve_data_dir()
+
+    if data_dir is None:
+        st.warning("Could not find the poetry dataset automatically.")
+        st.text_input(
+            "Enter the path to the dataset directory (the one containing corpus/):",
+            key="data_dir",
+            placeholder="/path/to/output_v4_modern",
+        )
+        st.info(
+            "You can also pass the path as a CLI argument:\n\n"
+            "    uv run streamlit run viewer.py -- /path/to/output_v4_modern"
+        )
+        return
+
+    corpus_jsonl = data_dir / "corpus" / "poetry_corpus.jsonl"
+    if not corpus_jsonl.exists():
+        st.error(
+            f"Found directory `{data_dir}` but missing expected file:\n\n"
+            f"    {corpus_jsonl}\n\n"
+            "Make sure the directory contains `corpus/poetry_corpus.jsonl`."
+        )
+        st.text_input(
+            "Enter a different path:",
+            key="data_dir",
+            placeholder="/path/to/output_v4_modern",
+        )
+        return
+
+    st.caption(f"Dataset: `{data_dir}`")
+
+    df = load_data(str(corpus_jsonl))
 
     tab_browse, tab_search, tab_stats = st.tabs(["Browse", "Search", "Stats"])
 
